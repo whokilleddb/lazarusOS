@@ -7,10 +7,9 @@ mod panic_handler;
 mod mem;
 
 #[no_mangle]
-extern fn efi_main(){
-    //See: https://doc.rust-lang.org/core/ptr/fn.write_volatile.html
-    unsafe{
-        core::ptr::write_volatile(0x4141414141414141 as *mut u64, 0);
+extern fn efi_main(_image_handle: EfiHandle, system_table: *mut EfiSystemTable) -> EfiStatus{
+    // First, register the system table in a global so we can use it in other places such as the `print!` macro
+    unsafe {
+        efi::register_system_table(system_table);
     }
-
 }
