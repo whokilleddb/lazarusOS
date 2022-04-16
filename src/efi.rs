@@ -2,6 +2,7 @@
 use core::sync::atomic::{AtomicPtr, Ordering};
 use crate::efi::{EfiHandle, EfiSystemTable, EfiStatus};
 
+
 /// Struct to store EFI_HANDLE
 /// Definition is analogous to the C definition as seen in:
 /// https://dox.ipxe.org/include_2ipxe_2efi_2efi_8h_source.html#l00050
@@ -11,12 +12,16 @@ pub struct EfiHandle(usize);
 
 
 /// Struct to store UEFI status code
+/// For definition, see: https://developer.apple.com/documentation/kernel/efi_status
+/// See(Page 23): https://uefi.org/sites/default/files/resources/UEFI%20Spec%202_6.pdf
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct EfiStatus(pub usize);
 
 
 /// A scan code and unicode value for an input key press
+/// See: https://dox.ipxe.org/structEFI__INPUT__KEY.html
+/// See: https://docs.rs/uefi-ffi/latest/uefi_ffi/struct.EFI_INPUT_KEY.html
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct EfiInputKey {
@@ -32,6 +37,10 @@ pub struct EfiInputKey {
 /// See: https://youtu.be/VW6WIe3aY_Q?t=577
 /// See: https://docs.rs/redox_uefi/latest/uefi/memory/enum.MemoryType.html
 /// See: https://uefi.org/specs/ACPI/6.4/15_System_Address_Map_Interfaces/uefi-getmemorymap-boot-services-function.html
+/// 
+/// Boot Services vs Runtime Services
+/// See: https://www.reddit.com/r/osdev/comments/gougq6/uefi_boot_services_vs_runtime_services/
+/// See: https://forum.osdev.org/viewtopic.php?f=1&t=40937
 pub enum EfiMemoryType {
     EfiReservedMemoryType,      // Not Used
     EfiLoaderCode,              // The code portions of a loaded application. (Note that UEFI OS loaders are UEFI applications.)
@@ -51,50 +60,7 @@ pub enum EfiMemoryType {
     Reserved,
 }
 
-impl EfiMemoryType {
-    // Returns whether or not this memory is available for general purpose use after the boot services have been exited
-    
-    // From Wikipedia: https://en.wikipedia.org/wiki/Unified_Extensible_Firmware_Interface#Services
-    // EFI defines two types of services: `boot` services and `runtime` services. 
-    // Boot services are available only while the firmware owns the platform (i.e., before the `ExitBootServices()` call), 
-    // and they include text and graphical consoles on various devices, and bus, block and file services. 
-    // Runtime services are still accessible while the operating system is running; 
-    // they include services such as date, time and NVRAM access.`
-
-    fn avail_post_exit_boot_services(&self) -> bool {
-        match self{
-            EfiMemoryType::EfiBootServicesCode |  
-            EfiMemoryType::EfiBootServicesData |
-            EfiMemoryType::EfiConventionalMemory |
-            EfiMemoryType::EfiPersistentMemory => true,
-
-            _ => false
-        }
-    }
-}
-
-/// Pointer to the EFI System Table which is saved upon the entry of the kernel
-/// This pointer is needed for Console I/O
-/// This needs to be global because `print()` functions don't get a `&self` pointer
-/// Declaring it global is the only way we can get access to the system table in a print macro
-static EFI_SYSTEM_TABLE: AtomicPtr<EfiSystemTable> = AtomicPtr::new(core::ptr::null_mut());
-
-/// Read More about UEFI System Table: https://edk2-docs.gitbook.io/edk-ii-uefi-driver-writer-s-guide/3_foundation/33_uefi_system_table
-/// EFI System Table: https://dox.ipxe.org/structEFI__SYSTEM__TABLE.html
-/// For Detailed Reading, See Chapter 4(Page: 93): https://uefi.org/sites/default/files/resources/UEFI%20Spec%202_6.pdf
-
-/// Register a system table pointer.
-/// Only the first non-null system table pointer will be stored in the `EFI_SYSTEM_TABLE` global
-pub unsafe fn register_system_table(system_table: *mut EfiSystemTable){
-    // See: https://doc.rust-lang.org/std/sync/atomic/struct.AtomicPtr.html#method.compare_exchange
-    EFI_SYSTEM_TABLE.compare_exchange(
-        core::ptr::null_mut(),
-        EfiSystemTable,
-        Ordering::SeqCst,    // See: https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html#variant.SeqCst
-        Ordering::SeqCst
-    );
-}
-
+/// Corresponding numeric codes to each of UEFI Memory types
 impl From<u32> for EfiMemoryType {
     fn from(val: u32) -> Self {
         match val {
@@ -116,6 +82,53 @@ impl From<u32> for EfiMemoryType {
            _	=> EfiMempryType::Reserved,
         }
     }
+}
+
+impl EfiMemoryType {
+    // Returns whether or not this memory is available for general purpose use after the boot services have been exited
+
+    // From Wikipedia: https://en.wikipedia.org/wiki/Unified_Extensible_Firmware_Interface#Services
+    // EFI defines two types of services: `boot` services and `runtime` services. 
+    // Boot services are available only while the firmware owns the platform (i.e., before the `ExitBootServices()` call), 
+    // and they include text and graphical consoles on various devices, and bus, block and file services. 
+    // Runtime services are still accessible while the operating system is running; 
+    // they include services such as date, time and NVRAM access.`
+
+    fn avail_post_exit_boot_services(&self) -> bool {
+        match self{
+            EfiMemoryType::EfiBootServicesCode |  
+            EfiMemoryType::EfiBootServicesData |
+            EfiMemoryType::EfiConventionalMemory |
+            EfiMemoryType::EfiPersistentMemory => true,
+
+            _ => false
+        }
+    }
+}
+
+
+/// Pointer to the EFI System Table which is saved upon the entry of the kernel
+/// This pointer is needed for Console I/O
+/// This needs to be global because `print()` functions don't get a `&self` pointer
+/// Declaring it global is the only way we can get access to the system table in a print macro
+static EFI_SYSTEM_TABLE: AtomicPtr<EfiSystemTable> = AtomicPtr::new(core::ptr::null_mut());
+
+
+/// Read More about UEFI System Table: https://edk2-docs.gitbook.io/edk-ii-uefi-driver-writer-s-guide/3_foundation/33_uefi_system_table
+/// EFI System Table: https://dox.ipxe.org/structEFI__SYSTEM__TABLE.html
+/// For Detailed Reading, See Chapter 4(Page: 93): https://uefi.org/sites/default/files/resources/UEFI%20Spec%202_6.pdf
+
+
+/// Register a system table pointer.
+/// Only the first non-null system table pointer will be stored in the `EFI_SYSTEM_TABLE` global
+pub unsafe fn register_system_table(system_table: *mut EfiSystemTable){
+    // See: https://doc.rust-lang.org/std/sync/atomic/struct.AtomicPtr.html#method.compare_exchange
+    EFI_SYSTEM_TABLE.compare_exchange(
+        core::ptr::null_mut(),
+        EfiSystemTable,
+        Ordering::SeqCst,    // See: https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html#variant.SeqCst
+        Ordering::SeqCst
+    );
 }
 
 
@@ -180,7 +193,9 @@ pub fun output_string(string: &str){
     }
 }
 
-// Get memory map for the System from UEFI
+
+/// Get memory map for the System from UEFI
+/// See: https://wiki.osdev.org/Detecting_Memory_(x86)
 pub fn get_memory_map(){
     // Get the system table
     let system_table = EFI_SYSTEM_TABLE.load(Ordering::SeqCst);
@@ -190,4 +205,46 @@ pub fn get_memory_map(){
 
     // Create an empty memory map
     let mut memory_map = [0u8; 2*1024];
+
+    let mut free_memory - 0u64;
+
+    // See: https://www.youtube.com/watch?v=VW6WIe3aY_Q
+    unsafe{
+        let mut map_size = core::mem::size_of_val(&memory_map);
+        let mut map_key;
+        let mut map_descriptor_size = 0;
+        let mut map_descriptor_version = 0;
+
+        // GetMemoryMap() Call
+        // See: https://uefi.org/specs/ACPI/6.4/15_System_Address_Map_Interfaces/uefi-getmemorymap-boot-services-function.html
+        let ret = ((*(*system_table).boot_services).get_memory_map)(
+            &mut map_size,
+            memory_map.as_mut_ptr(),
+            &mut map_key,
+            &mut map_descriptor_size,
+            &mut map_descriptor_version
+        );
+
+        // Check if Descriptor Table is empty
+        assert!(ret.0 == 0, "{:x?}", ret);
+
+        for off in (0..size).step_by(map_descriptor_size) {
+            let entry = core::ptr::read_unaligned(
+                memory_map[off..].as_ptr() as *const EfiMemoryDescriptor
+            );
+
+            let typ: EfiMemoryType = entry.typ.into();
+
+            if typ.avail_post_exit_boot_services(){
+                free_memory += entry.number_of_pages * 4096;
+            }
+
+            print!("{:16x} {:16x} {:?}\n",
+                entry.physical_start,
+                entry.number_of_pages * 4096,
+                typ);
+        }
+    }
+
+    print!("Total free bytes: {}\n", free_memory);
 }

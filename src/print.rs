@@ -16,6 +16,8 @@ impl Write for ScreenWriter{
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => {
+        // We use a hardcoded full path because we are using this in a macro
+        // Hence it will be called from a lot of different paths
         <$crate::print::ScreenWriter as core::fmt::Write>::write_fmt(
             &mut $crate::print::ScreenWriter,
             format_args!($($arg)*)
