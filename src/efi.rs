@@ -64,22 +64,22 @@ pub enum EfiMemoryType {
 impl From<u32> for EfiMemoryType {
     fn from(val: u32) -> Self {
         match val {
-            0	=> EfiMempryType::EfiReservedMemoryType,
-            1	=> EfiMempryType::EfiLoaderCode,
-            2	=> EfiMempryType::EfiLoaderData,
-            3	=> EfiMempryType::EfiBootServicesCode,
-            4	=> EfiMempryType::EfiBootServicesData,
-            5	=> EfiMempryType::EfiRuntimeServiceCode,
-            6	=> EfiMempryType::EfiRuntimeServicesData,
-            7	=> EfiMempryType::EfiConventionalMemory,
-            8	=> EfiMempryType::EfiUnusableMemory,
-            9	=> EfiMempryType::EfiACPIReclaimMemory,
-           10	=> EfiMempryType::EfiACPIMemoryNVS,
-           11	=> EfiMempryType::EfiMemoryMappedIO,
-           12	=> EfiMempryType::EfiMemoryMappedIOPortSpace,
-           13	=> EfiMempryType::EfiPalCode,
-           14	=> EfiMempryType::EfiPersistentMemory,
-           _	=> EfiMempryType::Reserved,
+            0 => EfiMempryType::EfiReservedMemoryType,
+            1 => EfiMempryType::EfiLoaderCode,
+            2 => EfiMempryType::EfiLoaderData,
+            3 => EfiMempryType::EfiBootServicesCode,
+            4 => EfiMempryType::EfiBootServicesData,
+            5 => EfiMempryType::EfiRuntimeServiceCode,
+            6 => EfiMempryType::EfiRuntimeServicesData,
+            7 => EfiMempryType::EfiConventionalMemory,
+            8 => EfiMempryType::EfiUnusableMemory,
+            9 => EfiMempryType::EfiACPIReclaimMemory,
+           10 => EfiMempryType::EfiACPIMemoryNVS,
+           11 => EfiMempryType::EfiMemoryMappedIO,
+           12 => EfiMempryType::EfiMemoryMappedIOPortSpace,
+           13 => EfiMempryType::EfiPalCode,
+           14 => EfiMempryType::EfiPersistentMemory,
+           _ => EfiMempryType::Reserved,
         }
     }
 }
@@ -88,15 +88,15 @@ impl EfiMemoryType {
     // Returns whether or not this memory is available for general purpose use after the boot services have been exited
 
     // From Wikipedia: https://en.wikipedia.org/wiki/Unified_Extensible_Firmware_Interface#Services
-    // EFI defines two types of services: `boot` services and `runtime` services. 
-    // Boot services are available only while the firmware owns the platform (i.e., before the `ExitBootServices()` call), 
-    // and they include text and graphical consoles on various devices, and bus, block and file services. 
-    // Runtime services are still accessible while the operating system is running; 
+    // EFI defines two types of services: `boot` services and `runtime` services.
+    // Boot services are available only while the firmware owns the platform (i.e., before the `ExitBootServices()` call),
+    // and they include text and graphical consoles on various devices, and bus, block and file services.
+    // Runtime services are still accessible while the operating system is running;
     // they include services such as date, time and NVRAM access.`
 
     fn avail_post_exit_boot_services(&self) -> bool {
         match self{
-            EfiMemoryType::EfiBootServicesCode |  
+            EfiMemoryType::EfiBootServicesCode |
             EfiMemoryType::EfiBootServicesData |
             EfiMemoryType::EfiConventionalMemory |
             EfiMemoryType::EfiPersistentMemory => true,
@@ -105,6 +105,47 @@ impl EfiMemoryType {
         }
     }
 }
+
+
+
+/// Memory descriptor to store the return type from `GetMemoryMap()`
+/// See: https://dox.ipxe.org/structEFI__MEMORY__DESCRIPTOR.html
+/// See: https://github.com/tianocore/edk2/blob/91a03f78ba0b75bc4ed2c4b756cbe57c685d9c72/MdePkg/Include/Uefi/UefiSpec.h#L127
+#[derive(Clone, Copy, Default, Debug)]
+#[repr(C)]
+struct EfiMemoryDescriptor {
+    // Type of the memory region.
+    typ: u32;
+
+    // Physical address of the first byte in the memory region
+    // It must be aligned to a 4KiB boundary and must not be above 
+    // 0xfffffffffffff000. Why the funny hex address? 
+    // See: https://www.reddit.com/r/osdev/comments/u56t5c/help_with_understanding_uefi_memory_descriptor/
+    // Why 4KiB?
+    // See: https://www.reddit.com/r/osdev/comments/u56t5c/comment/i50kny8/?utm_source=share&utm_medium=web2x&context=3
+    physical_start: u64; // 64 bit address
+
+    // Virtual address of the first byte in the memory region
+    // It must be aligned to a 4KiB boundary and must not be above 
+    // 0xfffffffffffff000. Why the funny hex address? 
+    // See: https://www.reddit.com/r/osdev/comments/u56t5c/help_with_understanding_uefi_memory_descriptor/
+    // See: https://www.reddit.com/r/osdev/comments/u56t5c/help_with_understanding_uefi_memory_descriptor/
+    // Why 4KiB?
+    // See: https://www.reddit.com/r/osdev/comments/u56t5c/comment/i50kny8/?utm_source=share&utm_medium=web2x&context=3
+    virtual_start: u64; // 64 bit address
+
+    // Number of 4KiB pages in the memory region. Number of pages cannot
+    // Number of Pages must not be 0, and must not be any value
+    // that would represent a memory page with a start address,
+    // either physical or virtual, above 0xfffffffffffff000.
+    number_of_pages: u64;
+
+    // Attributes of the memory region that describe the bit mask of capabilities
+    // for that memory region, and not necessarily the current settings for that
+    // memory region.
+    attribute: u64,
+}
+
 
 
 /// Pointer to the EFI System Table which is saved upon the entry of the kernel
