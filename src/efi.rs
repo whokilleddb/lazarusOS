@@ -265,6 +265,31 @@ struct EFI_BOOT_SERVICES {
 }
 
 
+/// This protocol is used to obtain input from the ConsoleIn device. The EFI specification
+/// requires that EFI_SIMPLE_TEXT_INPUT_PROTOCOL supports the same language as
+/// the corresponding EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL
+/// See page 467: https://uefi.org/sites/default/files/resources/UEFI%20Spec%202_6.pdf
+#[repr(C)]
+struct EFI_SIMPLE_TEXT_INPUT_PROTOCOL {
+    // Reset Input Device hardware
+    // See: https://dox.ipxe.org/SimpleTextIn_8h.html#adf982c71dcc0af2e4495044e66201b53
+    Reset: unsafe fn(
+        This: *const EFI_SIMPLE_TEXT_INPUT_PROTOCOL,
+        ExtendedVerification: bool) -> EFI_STATUS, 
+
+    // Reads the next keystroke from input device
+    // See: https://dox.ipxe.org/SimpleTextIn_8h.html#a09083a7dedf5d4f8fd1d437289869d39
+    ReadKeyStroke: unsafe fn(
+        This: *const EFI_SIMPLE_TEXT_INPUT_PROTOCOL,
+        Key: *mut EFI_INPUT_KEY,
+    )-> EFI_STATUS,
+    
+    // Event to use with EFI_BOOT_SERVICES.WaitForEvent() to wait for a key
+    // to be available. We don't use the event API thus we dont expose this function pointer
+    _WaitForKey: usize,
+}
+
+
 /// Pointer to the EFI System Table which is saved upon the entry of the kernel
 /// This pointer is needed for Console I/O
 /// This needs to be global because `print()` functions don't get a `&self` pointer
