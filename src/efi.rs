@@ -8,7 +8,7 @@ use crate::efi::{EfiHandle, EfiSystemTable, EfiStatus};
 /// https://dox.ipxe.org/include_2ipxe_2efi_2efi_8h_source.html#l00050
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]  // See: https://doc.rust-lang.org/reference/type-layout.html#the-c-representation
-pub struct EfiHandle(usize);
+pub struct EFI_HANDLE(usize);
 
 
 /// Struct to store UEFI status code
@@ -16,7 +16,7 @@ pub struct EfiHandle(usize);
 /// See(Page 23): https://uefi.org/sites/default/files/resources/UEFI%20Spec%202_6.pdf
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct EfiStatus(pub usize);
+pub struct EFI_STATUS(pub usize);
 
 
 /// A scan code and unicode value for an input key press
@@ -24,12 +24,12 @@ pub struct EfiStatus(pub usize);
 /// See: https://docs.rs/uefi-ffi/latest/uefi_ffi/struct.EFI_INPUT_KEY.html
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct EfiInputKey {
+pub struct EFI_INPUT_KEY {
     // Scan code for key press
-    scan_code: u16,
+    ScanCode: u16,
 
     // Unicode Representation of the key
-    unicode_char : u16,
+    UnicodeChar : u16,
 }
 
 
@@ -37,11 +37,12 @@ pub struct EfiInputKey {
 /// See: https://youtu.be/VW6WIe3aY_Q?t=577
 /// See: https://docs.rs/redox_uefi/latest/uefi/memory/enum.MemoryType.html
 /// See: https://uefi.org/specs/ACPI/6.4/15_System_Address_Map_Interfaces/uefi-getmemorymap-boot-services-function.html
-/// 
+/// See: https://dox.ipxe.org/UefiMultiPhase_8h.html#a0e2cdd0290e753cca604d3977cbe8bb9
+///
 /// Boot Services vs Runtime Services
 /// See: https://www.reddit.com/r/osdev/comments/gougq6/uefi_boot_services_vs_runtime_services/
 /// See: https://forum.osdev.org/viewtopic.php?f=1&t=40937
-pub enum EfiMemoryType {
+pub enum EFI_MEMORY_TYPE {
     EfiReservedMemoryType,      // Not Used
     EfiLoaderCode,              // The code portions of a loaded application. (Note that UEFI OS loaders are UEFI applications.)
     EfiLoaderData,              // The data portions of a loaded application and the default data allocation type used by an application to allocate pool memory.
@@ -57,34 +58,34 @@ pub enum EfiMemoryType {
     EfiMemoryMappedIOPortSpace, // System memory-mapped IO region that is used to translate memory cycles to IO cycles by the processor.
     EfiPalCode,                 // Address space reserved by the firmware for code that is part of the processor.
     EfiPersistentMemory,        // A memory region that operates as EfiConventionalMemory, however it happens to also support byte-addressable non-volatility.
-    Reserved,
+    EfiMaxMemoryType,
 }
 
 /// Corresponding numeric codes to each of UEFI Memory types
-impl From<u32> for EfiMemoryType {
+impl From<u32> for EFI_MEMORY_TYPE {
     fn from(val: u32) -> Self {
         match val {
-            0 => EfiMempryType::EfiReservedMemoryType,
-            1 => EfiMempryType::EfiLoaderCode,
-            2 => EfiMempryType::EfiLoaderData,
-            3 => EfiMempryType::EfiBootServicesCode,
-            4 => EfiMempryType::EfiBootServicesData,
-            5 => EfiMempryType::EfiRuntimeServiceCode,
-            6 => EfiMempryType::EfiRuntimeServicesData,
-            7 => EfiMempryType::EfiConventionalMemory,
-            8 => EfiMempryType::EfiUnusableMemory,
-            9 => EfiMempryType::EfiACPIReclaimMemory,
-           10 => EfiMempryType::EfiACPIMemoryNVS,
-           11 => EfiMempryType::EfiMemoryMappedIO,
-           12 => EfiMempryType::EfiMemoryMappedIOPortSpace,
-           13 => EfiMempryType::EfiPalCode,
-           14 => EfiMempryType::EfiPersistentMemory,
-           _ => EfiMempryType::Reserved,
+            0 => EFI_MEMORY_TYPE::EfiReservedMemoryType,
+            1 => EFI_MEMORY_TYPE::EfiLoaderCode,
+            2 => EFI_MEMORY_TYPE::EfiLoaderData,
+            3 => EFI_MEMORY_TYPE::EfiBootServicesCode,
+            4 => EFI_MEMORY_TYPE::EfiBootServicesData,
+            5 => EFI_MEMORY_TYPE::EfiRuntimeServiceCode,
+            6 => EFI_MEMORY_TYPE::EfiRuntimeServicesData,
+            7 => EFI_MEMORY_TYPE::EfiConventionalMemory,
+            8 => EFI_MEMORY_TYPE::EfiUnusableMemory,
+            9 => EFI_MEMORY_TYPE::EfiACPIReclaimMemory,
+           10 => EFI_MEMORY_TYPE::EfiACPIMemoryNVS,
+           11 => EFI_MEMORY_TYPE::EfiMemoryMappedIO,
+           12 => EFI_MEMORY_TYPE::EfiMemoryMappedIOPortSpace,
+           13 => EFI_MEMORY_TYPE::EfiPalCode,
+           14 => EFI_MEMORY_TYPE::EfiPersistentMemory,
+           _ => EFI_MEMORY_TYPE::EfiMaxMemoryType,
         }
     }
 }
 
-impl EfiMemoryType {
+impl EFI_MEMORY_TYPE {
     // Returns whether or not this memory is available for general purpose use after the boot services have been exited
 
     // From Wikipedia: https://en.wikipedia.org/wiki/Unified_Extensible_Firmware_Interface#Services
@@ -96,10 +97,10 @@ impl EfiMemoryType {
 
     fn avail_post_exit_boot_services(&self) -> bool {
         match self{
-            EfiMemoryType::EfiBootServicesCode |
-            EfiMemoryType::EfiBootServicesData |
-            EfiMemoryType::EfiConventionalMemory |
-            EfiMemoryType::EfiPersistentMemory => true,
+            EFI_MEMORY_TYPE::EfiBootServicesCode |
+            EFI_MEMORY_TYPE::EfiBootServicesData |
+            EFI_MEMORY_TYPE::EfiConventionalMemory |
+            EFI_MEMORY_TYPE::EfiPersistentMemory => true,
 
             _ => false
         }
@@ -113,9 +114,9 @@ impl EfiMemoryType {
 /// See: https://github.com/tianocore/edk2/blob/91a03f78ba0b75bc4ed2c4b756cbe57c685d9c72/MdePkg/Include/Uefi/UefiSpec.h#L127
 #[derive(Clone, Copy, Default, Debug)]
 #[repr(C)]
-struct EfiMemoryDescriptor {
+struct EFI_MEMORY_DESCRIPTOR{
     // Type of the memory region.
-    typ: u32;
+    Type: u32;
 
     // Physical address of the first byte in the memory region
     // It must be aligned to a 4KiB boundary and must not be above 
@@ -123,7 +124,7 @@ struct EfiMemoryDescriptor {
     // See: https://www.reddit.com/r/osdev/comments/u56t5c/help_with_understanding_uefi_memory_descriptor/
     // Why 4KiB?
     // See: https://www.reddit.com/r/osdev/comments/u56t5c/comment/i50kny8/?utm_source=share&utm_medium=web2x&context=3
-    physical_start: u64; // 64 bit address
+    EFI_PHYSICAL_ADDRESS: u64; // 64 bit address
 
     // Virtual address of the first byte in the memory region
     // It must be aligned to a 4KiB boundary and must not be above 
@@ -132,26 +133,142 @@ struct EfiMemoryDescriptor {
     // See: https://www.reddit.com/r/osdev/comments/u56t5c/help_with_understanding_uefi_memory_descriptor/
     // Why 4KiB?
     // See: https://www.reddit.com/r/osdev/comments/u56t5c/comment/i50kny8/?utm_source=share&utm_medium=web2x&context=3
-    virtual_start: u64; // 64 bit address
+    EFI_VIRTUAL_ADDRESS: u64; // 64 bit address
 
     // Number of 4KiB pages in the memory region. Number of pages cannot
     // Number of Pages must not be 0, and must not be any value
     // that would represent a memory page with a start address,
     // either physical or virtual, above 0xfffffffffffff000.
-    number_of_pages: u64;
+    NumberOfPages: u64;
 
     // Attributes of the memory region that describe the bit mask of capabilities
     // for that memory region, and not necessarily the current settings for that
     // memory region.
-    attribute: u64,
+    Attribute: u64,
 }
 
+
+/// Contains a table header and pointers to all boot services
+/// See: https://dox.ipxe.org/UefiSpec_8h_source.html#l01836
+#[repr(C)]
+struct EFI_BOOT_SERVICES {
+    // The table header for the EFI Boot Service Table. 
+    // This header contains the EF_BOOT_SERVICES_SIGNATURE and 
+    // EFI_BOOT_SERVICES_REVISION values along with the size of the 
+    // EFI_BOOT_SERVICES structure and a 32-bit CRC to verify the contents
+    // of the EFI Boot Service Tables are valid
+    Hdr: EFI_TABLE_HEADER,
+ 
+    // TASK PRIORITY SERVICES
+
+    // Raise the task priority level
+    _RaiseTPL: usize,
+
+    // Restores/Lowers the task priority level
+    _RestoreTPL: usize,
+
+    // MEMORY SERVICES
+
+    // Allocate Pages of a particular type
+    _AllocatePages: usize,
+
+    // Frees allocated pages
+    _FreePages: usize,
+
+    // Returns the current boot services memory map and memory map key
+    // See Page 157: https://uefi.org/sites/default/files/resources/UEFI%20Spec%202_6.pdf
+    GetMemoryMap: unsafe fn(
+        MemoryMapSize: &mut usize,
+        MemoryMap: *mut u8,
+        MapKey: &mut usize,
+        DescriptorSize: &mut usize,
+        DescriptorVersion: &mut u32,
+    ) -> EFI_STATUS,
+
+    // Allocates a pool of a particular type
+    _AllocatePool: usize,
+    
+    // Free Allocate pool
+    _FreePool: usize,
+
+    // EVENT & TIMER SERVICES
+
+    // Creates a general-purpose event structure
+    _CreateEvent: usize,
+
+    // Sets an event to be signaled at a particular time
+    _SetTimer: usize,
+
+    // Stop execution until an event is signaled
+    _WaitForEvent: usize,
+
+    // Signals an Event
+    _SignalEvent: usize,
+
+    // Closes and frees an event structure
+    _CloseEvent: usize,
+
+    // Check whether an event is in the signaled state
+    _CheckEvent: usize,
+
+    // PROTOCOL HANDLER SERVICES
+
+    // Installs a protocol interface on a device handle
+    _InstallProtocolInterface: usize,
+
+    // Reinstalls a protocol interface on a device handle
+    _ReinstallProtocolInterface: usize,
+
+    // Removes a protocol interface on a device handle
+    _UninstallProtocolInterface: usize,
+
+    // Quiries a handle to check if it supports a specific protocol
+    _HandleProtocol: usize,
+
+    // Reserved
+    _Reserved: usize,
+
+    // Register an event that is to be signaled whenever an interface is
+    // installed for a specified protocol
+    _RegisterProtocolNotify: usize,
+
+    // Returns an array of handles that support a specified protocol
+    _LocateHandle: usize,
+
+    // Locate all devices on a device path that support a specified protocol and 
+    // returns the handle to the device that is closest to the path
+    _LocateDevicePath: usize,
+
+    // Adds, update, or removes a configuration table from the EFI System Table
+    _InstallConfigurationTable: usize,
+
+    // IMAGE SERVICES
+
+    // Loads an EFI image into memory
+    _LoadImage: usize,
+
+    // Transfer control to a loaded image's entry point
+    _StartImage: usize,
+
+    // Exits an image's entry point
+    _Exit: usize,
+
+    // Unloads an image
+    _UnloadImage: usize,
+
+    // Terminate boot services 
+    // See Page 222: https://uefi.org/sites/default/files/resources/UEFI%20Spec%202_6.pdf 
+    ExitBootServices: unsafe fn(
+        ImageHandle: EFI_HANDLE,
+        MapKey: usize
+    )-> EFI_STATUS,
+}
 
 
 /// Pointer to the EFI System Table which is saved upon the entry of the kernel
 /// This pointer is needed for Console I/O
 /// This needs to be global because `print()` functions don't get a `&self` pointer
-/// Declaring it global is the only way we can get access to the system table in a print macro
+/// D3eclaring it global is the only way we can get access to the system table in a print macro
 static EFI_SYSTEM_TABLE: AtomicPtr<EfiSystemTable> = AtomicPtr::new(core::ptr::null_mut());
 
 
@@ -237,7 +354,7 @@ pub fun output_string(string: &str){
 
 /// Get memory map for the System from UEFI
 /// See: https://wiki.osdev.org/Detecting_Memory_(x86)
-pub fn get_memory_map(){
+pub fn GetMemoryMap(){
     // Get the system table
     let system_table = EFI_SYSTEM_TABLE.load(Ordering::SeqCst);
 
@@ -274,7 +391,7 @@ pub fn get_memory_map(){
                 memory_map[off..].as_ptr() as *const EfiMemoryDescriptor
             );
 
-            let typ: EfiMemoryType = entry.typ.into();
+            let typ: EFI_MEMORY_TYPE = entry.typ.into();
 
             if typ.avail_post_exit_boot_services(){
                 free_memory += entry.number_of_pages * 4096;
