@@ -25,17 +25,3 @@ macro_rules! print {
     }
 }
 
-
-// Standard Rust `println!()`
-#[macro_export]
-macro_rules! println {
-    () => ($crate::print!("\n"));
-    ($($arg:tt)*) => {
-        <$crate::print::ScreenWriter as core::fmt::Write>::write_fmt(
-            &mut $crate::print::ScreenWriter,
-            format_args!($($arg)*)
-        );
-    }
-}
-
-

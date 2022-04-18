@@ -1,6 +1,10 @@
 //! This file contains UEFI EFI structures
+#![allow(non_camel_case_types)]
+#![allow(unused_attributes)]
+#![allow(non_upper_case_globals)]
+#![allow(dead_code)]
+#![allow(non_snake_case)]
 use core::sync::atomic::{AtomicPtr, Ordering};
-use crate::efi::{EfiHandle, EfiSystemTable, EfiStatus};
 
 
 /// Struct to store EFI_HANDLE
@@ -42,6 +46,8 @@ pub struct EFI_INPUT_KEY {
 /// Boot Services vs Runtime Services
 /// See: https://www.reddit.com/r/osdev/comments/gougq6/uefi_boot_services_vs_runtime_services/
 /// See: https://forum.osdev.org/viewtopic.php?f=1&t=40937
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
 pub enum EFI_MEMORY_TYPE {
     EfiReservedMemoryType,      // Not Used
     EfiLoaderCode,              // The code portions of a loaded application. (Note that UEFI OS loaders are UEFI applications.)
@@ -108,6 +114,41 @@ impl EFI_MEMORY_TYPE {
 }
 
 
+/// Data structure that preceeds all the standard EFI Table types
+/// See: https://dox.ipxe.org/structEFI__TABLE__HEADER.html
+#[repr(C)]
+struct EFI_TABLE_HEADER{
+    // A 64 bit signature that identifies the type of table that follows.
+    // Unique Signatures have been generated for the EFI_SYSTEM_TABLE, the Boot Service
+    // Table, and the EFI Runtime Services Table
+    Signature: u64,
+
+    // The revision of the EFI Specification to which this table confroms. The 
+    // upper 16 bits of this field contains the major revision value, and the
+    // lower 16 bits contains the minor revision value. The minor revision values 
+    // are binary coded decimals and are limited to the range of 00-99
+    //
+    //  When printed or displayed UEFI spec revision is referred as (Major
+    //  revision).(Minor revision upper decimal).(Minor revision lower
+    //  decimal) or (Major revision).(Minor revision upper decimal) in
+    //  case Minor revision lower decimal is set to 0. For example:
+    //
+    //  A specification with the revision value ((2<<16) | (30)) would be referred as 2.3
+	//
+    //  A specification with the revision value ((2<<16) | (31)) would be referred as 2.3.1
+    Revision: u32,
+
+    // The size of the entire table including EFI_TABLE_HEADER in bytes
+    HeaderSize: u32,
+
+    // The 32 bit CRC for the entire table. This value is computed by
+    // setting this field to 0, and computing the 32-bit CRC for HeaderSize bytes.
+    CRC32: u32,
+
+    // Reserved field that must be set to 0
+    Reserved: u32,
+}
+
 
 /// Memory descriptor to store the return type from `GetMemoryMap()`
 /// See: https://dox.ipxe.org/structEFI__MEMORY__DESCRIPTOR.html
@@ -116,7 +157,7 @@ impl EFI_MEMORY_TYPE {
 #[repr(C)]
 struct EFI_MEMORY_DESCRIPTOR{
     // Type of the memory region.
-    Type: u32;
+    Type: u32,
 
     // Physical address of the first byte in the memory region
     // It must be aligned to a 4KiB boundary and must not be above 
@@ -124,7 +165,7 @@ struct EFI_MEMORY_DESCRIPTOR{
     // See: https://www.reddit.com/r/osdev/comments/u56t5c/help_with_understanding_uefi_memory_descriptor/
     // Why 4KiB?
     // See: https://www.reddit.com/r/osdev/comments/u56t5c/comment/i50kny8/?utm_source=share&utm_medium=web2x&context=3
-    EFI_PHYSICAL_ADDRESS: u64; // 64 bit address
+    PhysicalAddress: u64, // 64 bit address
 
     // Virtual address of the first byte in the memory region
     // It must be aligned to a 4KiB boundary and must not be above 
@@ -133,13 +174,13 @@ struct EFI_MEMORY_DESCRIPTOR{
     // See: https://www.reddit.com/r/osdev/comments/u56t5c/help_with_understanding_uefi_memory_descriptor/
     // Why 4KiB?
     // See: https://www.reddit.com/r/osdev/comments/u56t5c/comment/i50kny8/?utm_source=share&utm_medium=web2x&context=3
-    EFI_VIRTUAL_ADDRESS: u64; // 64 bit address
+    VirtualAddress: u64, // 64 bit address
 
     // Number of 4KiB pages in the memory region. Number of pages cannot
     // Number of Pages must not be 0, and must not be any value
     // that would represent a memory page with a start address,
     // either physical or virtual, above 0xfffffffffffff000.
-    NumberOfPages: u64;
+    NumberOfPages: u64,
 
     // Attributes of the memory region that describe the bit mask of capabilities
     // for that memory region, and not necessarily the current settings for that
@@ -222,7 +263,7 @@ struct EFI_BOOT_SERVICES {
     // Removes a protocol interface on a device handle
     _UninstallProtocolInterface: usize,
 
-    // Quiries a handle to check if it supports a specific protocol
+    // Queries a handle to check if it supports a specific protocol
     _HandleProtocol: usize,
 
     // Reserved
@@ -290,11 +331,107 @@ struct EFI_SIMPLE_TEXT_INPUT_PROTOCOL {
 }
 
 
+/// This protocol is used to control Text Based output devices
+/// See page 470: https://uefi.org/sites/default/files/resources/UEFI%20Spec%202_6.pdf
+/// See: https://edk2-docs.gitbook.io/edk-ii-uefi-driver-writer-s-guide/22_text_console_driver_design_guidelines/readme.3
+#[repr(C)]
+struct EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL {
+    // Resets the text output device hardware
+    Reset: unsafe fn(
+        This: *const EFI_SIMPLE_TEXT_INPUT_PROTOCOL,
+        ExtendedVerification: bool) -> EFI_STATUS,  
+
+    // Write String to output device
+    // See: https://dox.ipxe.org/SimpleTextOut_8h.html#afcf652d19afcb35e585089c15a51b115
+    OutputString: unsafe fn(
+        This: *const EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL,
+        String: *const u16,
+    )->EFI_STATUS,
+
+    // Verfies that all the characters in the string can be output to the target device
+    TestString: unsafe fn(
+        This: *const EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL,
+        String: *const u16,
+    )->EFI_STATUS,
+
+    // Returns information for an available text mode 
+    // that the output device supports
+    _QueryMode: usize,
+
+    // Sets output device to a specific mode
+    _SetMode: usize,
+
+    // Set background and foreground colors for the OutputString()
+    // and ClearScreen() functions
+    _SetAttribute: usize,
+
+    // Clears output device to display the currently selected background color
+    _ClearScreen: usize,
+
+    // Sets the current co-ordinates of the cursor position
+    _SetCursorPosition: usize, 
+
+    // Makes the cursor visible or invisible
+    _EnableCursor: usize,
+
+    // Pointer to SIMPLE_TEXT_OUTPUT_MODE data
+    _Mode: usize,
+}
+
+/// Contains pointers to runtime and boot time service tables
+/// See: https://dox.ipxe.org/structEFI__SYSTEM__TABLE.html
+#[repr(C)]
+pub struct EFI_SYSTEM_TABLE {
+    // The table header for the EFI System Table. This header contains the
+    // EFI_SYSTEM_TABLE_SIGNATURE and EFI_SYSTEM_TABLE_REVISION values along
+    // with the size of the EFI_SYSTEM_TABLE structure and a 32-bit CRC to
+    // verify that the contents of the EFI System table are valid
+    Hdr: EFI_TABLE_HEADER,
+
+    // A pointer to a null terminated string that identifies the vendor that
+    // produces system firmware for the platform
+    FirmwareVendor: *const u16,
+
+    // A firmware vendor specific value that identifies the revision of
+    // the system firmware for the platform
+    FirmwareRevision: u32,
+
+    // The handle for the active console input device. This handle must support
+    // EFI_SIMPLE_TEXT_INPUT_PROTOCOL and EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL
+    ConsoleInHandle: EFI_HANDLE,
+
+    // A pointer to the EFI_SIMPLE_TEXT_INPUT_PROTOCOL interface that is 
+    // associated with ConsoleInHandle
+    ConIn: *const EFI_SIMPLE_TEXT_INPUT_PROTOCOL,
+
+    // The handle for the active console output device. This handle must support
+    // EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL and EFI_SIMPLE_TEXT_OUTPUT_EX_PROTOCOL
+    ConsoleOutHandle: EFI_HANDLE,
+
+    // A pointer to the EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL interface that is 
+    // associated with ConsoleOutHandle
+    ConOut: *const EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL,
+
+    // The handle for the active console standard error device. This handle must support
+    // EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL and EFI_SIMPLE_TEXT_OUTPUT_EX_PROTOCOL
+    StandardErrHandle: EFI_HANDLE,
+
+    // A pointer to the EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL interface that is 
+    // associated with StandardErrorHandle
+    StdErr: *const EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL,
+
+    // A pointer to the EFI Runtime Service handle
+    _RuntimeServices: usize,
+
+    // A pointer to the EFI Boot Service handle
+    BootServices: *const EFI_BOOT_SERVICES,
+}
+
 /// Pointer to the EFI System Table which is saved upon the entry of the kernel
 /// This pointer is needed for Console I/O
 /// This needs to be global because `print()` functions don't get a `&self` pointer
 /// D3eclaring it global is the only way we can get access to the system table in a print macro
-static EFI_SYSTEM_TABLE: AtomicPtr<EfiSystemTable> = AtomicPtr::new(core::ptr::null_mut());
+static EfiSystemTable: AtomicPtr<EFI_SYSTEM_TABLE> = AtomicPtr::new(core::ptr::null_mut());
 
 
 /// Read More about UEFI System Table: https://edk2-docs.gitbook.io/edk-ii-uefi-driver-writer-s-guide/3_foundation/33_uefi_system_table
@@ -303,12 +440,12 @@ static EFI_SYSTEM_TABLE: AtomicPtr<EfiSystemTable> = AtomicPtr::new(core::ptr::n
 
 
 /// Register a system table pointer.
-/// Only the first non-null system table pointer will be stored in the `EFI_SYSTEM_TABLE` global
-pub unsafe fn register_system_table(system_table: *mut EfiSystemTable){
+/// Only the first non-null system table pointer will be stored in the `EfiSystemTable` global
+pub unsafe fn register_system_table(system_table: *mut EFI_SYSTEM_TABLE){
     // See: https://doc.rust-lang.org/std/sync/atomic/struct.AtomicPtr.html#method.compare_exchange
-    EFI_SYSTEM_TABLE.compare_exchange(
+    EfiSystemTable.compare_exchange(
         core::ptr::null_mut(),
-        EfiSystemTable,
+        system_table,
         Ordering::SeqCst,    // See: https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html#variant.SeqCst
         Ordering::SeqCst
     );
@@ -316,16 +453,16 @@ pub unsafe fn register_system_table(system_table: *mut EfiSystemTable){
 
 
 /// Write a `string` to UEFI output
-pub fun output_string(string: &str){
+pub fn output_string(string: &str){
     // Get the system table
-    let system_table = EFI_SYSTEM_TABLE.load(Ordering::SeqCst);
+    let system_table = EfiSystemTable.load(Ordering::SeqCst);
 
     // Check if pointer is null
     if system_table.is_null(){return ;}
 
     // Get the console output_pointer
     let console_std_out = unsafe {
-        (*system_table).console_out
+        (*system_table).ConOut
     };
 
     // Create a temporary buffer capable of holding 31 characters and a null
@@ -356,7 +493,7 @@ pub fun output_string(string: &str){
             // See: https://github.com/rust-osdev/uefi-rs/blob/dfca11c419a6b2d943ef02af4c7d6c7e3732a195/src/proto/console/text/output.rs#L46
             unsafe {
                 ((*console_std_out)
-                    .output_string)(out, tmp.as_ptr());
+                    .OutputString)(console_std_out, tmp.as_ptr());
             }
 
             // Clear the buffer
@@ -371,7 +508,7 @@ pub fun output_string(string: &str){
 
         unsafe {
             ((*console_std_out)
-                .output_string)(out, tmp.as_ptr());
+                .OutputString)(console_std_out, tmp.as_ptr());
         }
     }
 }
@@ -381,7 +518,7 @@ pub fun output_string(string: &str){
 /// See: https://wiki.osdev.org/Detecting_Memory_(x86)
 pub fn GetMemoryMap(){
     // Get the system table
-    let system_table = EFI_SYSTEM_TABLE.load(Ordering::SeqCst);
+    let system_table = EfiSystemTable.load(Ordering::SeqCst);
 
     // Check null
     if system_table.is_null() {return;}
@@ -389,18 +526,18 @@ pub fn GetMemoryMap(){
     // Create an empty memory map
     let mut memory_map = [0u8; 2*1024];
 
-    let mut free_memory - 0u64;
+    let mut free_memory = 0u64;
 
     // See: https://www.youtube.com/watch?v=VW6WIe3aY_Q
     unsafe{
         let mut map_size = core::mem::size_of_val(&memory_map);
-        let mut map_key;
+        let mut map_key = 0;
         let mut map_descriptor_size = 0;
         let mut map_descriptor_version = 0;
 
         // GetMemoryMap() Call
         // See: https://uefi.org/specs/ACPI/6.4/15_System_Address_Map_Interfaces/uefi-getmemorymap-boot-services-function.html
-        let ret = ((*(*system_table).boot_services).get_memory_map)(
+        let ret = ((*(*system_table).BootServices).GetMemoryMap)(
             &mut map_size,
             memory_map.as_mut_ptr(),
             &mut map_key,
@@ -411,21 +548,22 @@ pub fn GetMemoryMap(){
         // Check if Descriptor Table is empty
         assert!(ret.0 == 0, "{:x?}", ret);
 
-        for off in (0..size).step_by(map_descriptor_size) {
+        for off in (0..map_size).step_by(map_descriptor_size) {
             let entry = core::ptr::read_unaligned(
-                memory_map[off..].as_ptr() as *const EfiMemoryDescriptor
+                memory_map[off..].as_ptr() as *const EFI_MEMORY_DESCRIPTOR
             );
 
-            let typ: EFI_MEMORY_TYPE = entry.typ.into();
+            let typ: EFI_MEMORY_TYPE = entry.Type.into();
 
             if typ.avail_post_exit_boot_services(){
-                free_memory += entry.number_of_pages * 4096;
+                free_memory += entry.NumberOfPages * 4096;
             }
 
             print!("{:16x} {:16x} {:?}\n",
-                entry.physical_start,
-                entry.number_of_pages * 4096,
-                typ);
+                entry.PhysicalAddress,
+                entry.NumberOfPages * 4096,
+                typ
+            );
         }
     }
 
