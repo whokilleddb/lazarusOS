@@ -443,12 +443,14 @@ static EfiSystemTable: AtomicPtr<EFI_SYSTEM_TABLE> = AtomicPtr::new(core::ptr::n
 /// Only the first non-null system table pointer will be stored in the `EfiSystemTable` global
 pub unsafe fn register_system_table(system_table: *mut EFI_SYSTEM_TABLE){
     // See: https://doc.rust-lang.org/std/sync/atomic/struct.AtomicPtr.html#method.compare_exchange
-    EfiSystemTable.compare_exchange(
+    match EfiSystemTable.compare_exchange(
         core::ptr::null_mut(),
         system_table,
         Ordering::SeqCst,    // See: https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html#variant.SeqCst
-        Ordering::SeqCst
-    );
+        Ordering::SeqCst){
+        Err(_e) => {return ;},
+        _ => (),
+    };
 }
 
 
