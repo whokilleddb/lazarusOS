@@ -516,6 +516,74 @@ pub fn output_string(string: &str){
 }
 
 
+/// Write a `string` to UEFI stderr
+pub fn stderr_string(string: &str){
+    // Get the system table
+    let system_table = EfiSystemTable.load(Ordering::SeqCst);
+
+    // Check if pointer is null
+    if system_table.is_null(){return ;}
+
+    // Get the console output_pointer
+    let console_std_err = unsafe {
+        (*system_table).StdErr
+    };
+
+    // Create a temporary buffer capable of holding 31 characters and a null
+    // UEFI uses UCS-2 encoding instead of UTF-16
+    let mut tmp = [0u16; 32];
+    let mut in_use = 0;
+
+    // Loop through all characters
+    for chr in string.encode_utf16(){
+        // Add CRLF
+        // CRLFs are required by serial consoles at times instead
+        if chr == b'\n' as u16{
+            tmp[in_use] = b'\r' as u16;
+            in_use += 1;
+        }
+
+        // Write character into buffer
+        tmp[in_use] = chr;
+        in_use += 1;
+
+        // Note the -2 instead of the usual -1
+        // This is because of `\r\n`
+        if in_use == (tmp.len()-2){
+            // Null Terminate the buffer
+            tmp[in_use] = 0;
+
+            // Write output to buffer
+            // See: https://github.com/rust-osdev/uefi-rs/blob/dfca11c419a6b2d943ef02af4c7d6c7e3732a195/src/proto/console/text/output.rs#L46
+            unsafe {
+                ((*console_std_err)
+                    .OutputString)(console_std_err, tmp.as_ptr());
+            }
+
+            // Clear the buffer
+            in_use = 0;
+        }
+    }
+
+    // Write out any remaining characters
+    if in_use > 0 {
+        // Null terminate the buffer
+        tmp[in_use] = 0;
+
+        unsafe {
+            ((*console_std_err)
+                .OutputString)(console_std_err, tmp.as_ptr());
+        }
+    }
+}
+
+
+
+
+
+
+
+
 /// Get memory map for the System from UEFI
 /// See: https://wiki.osdev.org/Detecting_Memory_(x86)
 pub fn GetMemoryMap(){
