@@ -1,0 +1,10 @@
+[build]
+target = "x86_64-unknown-uefi"  # Target Architecture
+
+[unstable]
+build-std = ["core"]
+#build-std = ["core", "compiler_builtins"]            # This is telling cargo to build the core library itself (and not use the precompiled one that you install when installing a target). This is an unstable feature though so it has to be in that section
+#build-std-features = ["compiler-builtins-mem"]
+
+[target.x86_64-unknown-uefi]
+rustflags = ["-C", "link-args=/debug:dwarf"]    # Use dwarf type debug format
