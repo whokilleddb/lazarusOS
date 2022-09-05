@@ -448,9 +448,16 @@ pub unsafe fn register_system_table(system_table: *mut EFI_SYSTEM_TABLE){
         system_table,
         Ordering::SeqCst,    // See: https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html#variant.SeqCst
         Ordering::SeqCst){
-        Err(_e) => {return ;},
+        Err(e) => {
+            eprint!("[!] Failed to register EFI_SYSTEM_TABLE\n");
+            eprint!("[!] EFI_SYSTEM_TABLE at Error: {:?}\n",e);
+            return ;
+        },
         _ => (),
     };
+
+    print!("[i] Registered EFI_SYSTEM_TABLE!\n");
+    print!("[i] EFI_SYSTEM_TABLE is located at: {:?}\n", system_table);
 }
 
 
@@ -466,6 +473,9 @@ pub fn output_string(string: &str){
     let console_std_out = unsafe {
         (*system_table).ConOut
     };
+
+    // Check if console_std_out is NULL
+    if console_std_out.is_null(){return ;}
 
     // Create a temporary buffer capable of holding 31 characters and a null
     // UEFI uses UCS-2 encoding instead of UTF-16
@@ -529,6 +539,9 @@ pub fn stderr_string(string: &str){
         (*system_table).StdErr
     };
 
+    // Check is console_std_err is NULL
+    if console_std_err.is_null(){return ;}
+
     // Create a temporary buffer capable of holding 31 characters and a null
     // UEFI uses UCS-2 encoding instead of UTF-16
     let mut tmp = [0u16; 32];
@@ -576,12 +589,6 @@ pub fn stderr_string(string: &str){
         }
     }
 }
-
-
-
-
-
-
 
 
 /// Get memory map for the System from UEFI

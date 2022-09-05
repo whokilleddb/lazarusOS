@@ -24,7 +24,6 @@ impl Write for ScreenErrWriter{
 }
 
 
-
 /// Standard Rust `print!()`
 #[macro_export]
 macro_rules! print {
