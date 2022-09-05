@@ -17,5 +17,8 @@ extern fn efi_main(_image_handle: EFI_HANDLE, system_table: *mut EFI_SYSTEM_TABL
     unsafe {
         efi::register_system_table(system_table);
     }
+
+    efi::GetMemoryMap();
+    
     panic!("LazarusOS Is Live!\n");
 }

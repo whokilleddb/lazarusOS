@@ -601,7 +601,9 @@ pub fn GetMemoryMap(){
     if system_table.is_null() {return;}
 
     // Create an empty memory map
-    let mut memory_map = [0u8; 2*1024];
+    // Make sure this size entry is large enough to hold the MemoryMap!
+    // Or else, it will throw an error 8000000000000005
+    let mut memory_map = [0u8; 8*1024];
 
     let mut free_memory = 0u64;
 
@@ -612,8 +614,10 @@ pub fn GetMemoryMap(){
         let mut map_descriptor_size = 0;
         let mut map_descriptor_version = 0;
 
+
         // GetMemoryMap() Call
         // See: https://uefi.org/specs/ACPI/6.4/15_System_Address_Map_Interfaces/uefi-getmemorymap-boot-services-function.html
+
         let ret = ((*(*system_table).BootServices).GetMemoryMap)(
             &mut map_size,
             memory_map.as_mut_ptr(),
@@ -622,8 +626,11 @@ pub fn GetMemoryMap(){
             &mut map_descriptor_version
         );
 
+
         // Check if Descriptor Table is empty
         assert!(ret.0 == 0, "{:x?}", ret);
+        print!("[i] Memory Map:\n");
+        print!("\tPhysical Addr\t  No of Pages\tType\n");
 
         for off in (0..map_size).step_by(map_descriptor_size) {
             let entry = core::ptr::read_unaligned(
@@ -636,7 +643,7 @@ pub fn GetMemoryMap(){
                 free_memory += entry.NumberOfPages * 4096;
             }
 
-            print!("{:16x} {:16x} {:?}\n",
+            print!("{:16x} {:16x}\t{:?}\n",
                 entry.PhysicalAddress,
                 entry.NumberOfPages * 4096,
                 typ
@@ -644,5 +651,5 @@ pub fn GetMemoryMap(){
         }
     }
 
-    print!("Total free bytes: {}\n", free_memory);
+    print!("\n[+] Total free bytes: {}\n", free_memory);
 }
