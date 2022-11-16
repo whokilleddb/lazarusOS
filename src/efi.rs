@@ -593,7 +593,7 @@ pub fn stderr_string(string: &str){
 
 /// Get memory map for the System from UEFI
 /// See: https://wiki.osdev.org/Detecting_Memory_(x86)
-pub fn GetMemoryMap(){
+pub fn GetMemoryMap(image_handle: EFI_HANDLE){
     // Get the system table
     let system_table = EfiSystemTable.load(Ordering::SeqCst);
 
@@ -643,7 +643,7 @@ pub fn GetMemoryMap(){
                 free_memory += entry.NumberOfPages * 4096;
             }
 
-            print!("{:16x} {:16x}\t{:?}\n",
+            print!("{:#16x} {:16x}\t{:?}\n",
                 entry.PhysicalAddress,
                 entry.NumberOfPages * 4096,
                 typ
