@@ -6,6 +6,7 @@
 mod panic_handler;
 mod mem;
 mod efi;
+mod acpi;
 
 use crate::efi::{EFI_HANDLE, EFI_SYSTEM_TABLE, EFI_STATUS};
 
@@ -18,7 +19,8 @@ extern fn efi_main(image_handle: EFI_HANDLE, system_table: *mut EFI_SYSTEM_TABLE
         efi::register_system_table(system_table);
     }
 
+    print!("[i] Fetching Memory Map\n");
     efi::GetMemoryMap(image_handle);
-    
+
     panic!("LazarusOS Is Live!\n");
 }

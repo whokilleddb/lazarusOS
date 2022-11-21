@@ -457,7 +457,6 @@ pub unsafe fn register_system_table(system_table: *mut EFI_SYSTEM_TABLE){
     };
 
     print!("[i] Registered EFI_SYSTEM_TABLE!\n");
-    print!("[i] EFI_SYSTEM_TABLE is located at: {:?}\n", system_table);
 }
 
 
@@ -593,7 +592,7 @@ pub fn stderr_string(string: &str){
 
 /// Get memory map for the System from UEFI
 /// See: https://wiki.osdev.org/Detecting_Memory_(x86)
-pub fn GetMemoryMap(image_handle: EFI_HANDLE){
+pub fn GetMemoryMap(_image_handle: EFI_HANDLE){
     // Get the system table
     let system_table = EfiSystemTable.load(Ordering::SeqCst);
 
@@ -605,7 +604,7 @@ pub fn GetMemoryMap(image_handle: EFI_HANDLE){
     // Or else, it will throw an error 8000000000000005
     let mut memory_map = [0u8; 8*1024];
 
-    let mut free_memory = 0u64;
+    let mut __free_memory = 0u64;
 
     // See: https://www.youtube.com/watch?v=VW6WIe3aY_Q
     unsafe{
@@ -628,9 +627,7 @@ pub fn GetMemoryMap(image_handle: EFI_HANDLE){
 
 
         // Check if Descriptor Table is empty
-        assert!(ret.0 == 0, "{:x?}", ret);
-        print!("[i] Memory Map:\n");
-        print!("\tPhysical Addr\t  No of Pages\tType\n");
+        assert!(ret.0 == 0, "GetMemoryMap() failed: {:x?}", ret);
 
         for off in (0..map_size).step_by(map_descriptor_size) {
             let entry = core::ptr::read_unaligned(
@@ -640,16 +637,27 @@ pub fn GetMemoryMap(image_handle: EFI_HANDLE){
             let typ: EFI_MEMORY_TYPE = entry.Type.into();
 
             if typ.avail_post_exit_boot_services(){
-                free_memory += entry.NumberOfPages * 4096;
+                __free_memory += entry.NumberOfPages * 4096;
             }
 
             print!("{:#16x} {:16x}\t{:?}\n",
                 entry.PhysicalAddress,
                 entry.NumberOfPages * 4096,
                 typ
-            );
+            );            
         }
+
+        // Exit Boot services
+        // let ret = ((*(*system_table).BootServices).ExitBootServices)(
+        //         image_handle,
+        //         map_key
+        //     );
+
+        // assert!(ret.0 == 0, "Failed to exit Boot Services: {:x?}", ret);
+
+        // // Now that we are done with the boot services, kill UEFI system table
+        // EfiSystemTable.store(core::ptr::null_mut(), Ordering::SeqCst);
     }
 
-    print!("\n[+] Total free bytes: {}\n", free_memory);
+    print!("\n[+] Total free bytes: {}\n", __free_memory);
 }
