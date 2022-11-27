@@ -7,6 +7,7 @@ mod panic_handler;
 mod mem;
 mod efi;
 mod acpi;
+mod mm;
 
 use crate::efi::{EFI_HANDLE, EFI_SYSTEM_TABLE, EFI_STATUS};
 

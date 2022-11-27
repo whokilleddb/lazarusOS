@@ -1,0 +1,6 @@
+# Cyber Drill
+
+-> Kali linux VM
+-> Windows Server 2016
+-> 2 x Windows 10 Pro Client
+-> Ubuntu (Optional)
