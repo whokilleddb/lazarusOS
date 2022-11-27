@@ -103,8 +103,11 @@ unsafe fn parse_header(addr: PhysAddr) -> (acpi_table_header, PhysAddr, usize){
 pub unsafe fn init(){
     // Specification says that we have to scan the first 1KiB of the EDBA and
     // the range from 0xe0000 to 0xfffff
+    // The RSDP is either located within the first 1 KB of the EBDA
+    // (Extended BIOS Data Area) (a 2 byte real mode segment pointer to it is located at 0x40E),
     // See: https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_final.pdf
     // See: 2.5.1.2 Fixed Resources for Working with Option ROMs
+    // See: https://wiki.osdev.org/RSDP#Detecting_the_RSDP
     let ebda = mm::read_phys::<u16>(PhysAddr(0x40e)) as u64;
 
     // Compute the regions we need to scan for the RSDP
@@ -138,7 +141,7 @@ pub unsafe fn init(){
             if &table.Signature != b"RSD PTR " {
                 continue;
             }
-            
+
             // Read the tables bytes so we can checksum it
             let table_bytes = mm::read_phys::
                 <[u8; size_of::<RSDPDescriptor>()]>(PhysAddr(paddr));
